@@ -1,0 +1,143 @@
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.numeric_std.all;
+
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx leaf cells in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity matrix is
+    Port ( rgb1 : out std_logic_vector(2 downto 0);
+           rgb2 : out std_logic_vector(2 downto 0);
+           a : out std_logic_vector(3 downto 0);
+           button1,button2,button3,clk_in : in std_logic;
+           blank,latch : out std_logic;
+           SCLK : out std_logic
+            );
+end matrix;
+
+architecture Behavioral of matrix is
+signal colcount: integer range 0 to 31 := 0;
+signal rowcount: integer range 0 to 15 := 0;
+signal sa,next_sa : std_logic_vector(3 downto 0);
+signal srgb1,srgb2 : std_logic_vector(2 downto 0);
+signal counter: integer range 0 to 37;
+signal clk : std_logic;
+signal xpos : integer range 0 to 31 := 8;
+signal ypos : integer range 0 to 31 := 8;
+signal movcount: integer range 0 to 2000000 :=0;
+                                                                 -- RGB
+type spriteArray is array (positive range <>) of std_logic_vector(2 downto 0);
+                        -- 3x3 = 9
+signal ball : spriteArray( 0 to 8) := ("000", "111", "000",
+                                       "100", "010", "001",
+                                       "000", "111", "000");
+                                           
+component clk_wiz_0
+port
+ (-- Clock in ports
+  -- Clock out ports
+  clk_out1          : out    std_logic;
+  -- Status and control signals
+  clk_in1          : in     std_logic
+ );
+end component;
+
+begin
+clock_div: clk_wiz_0            --divides 100MHz freq to 20MHz
+   port map ( 
+  -- Clock out ports  
+   clk_out1 => clk,               
+   -- Clock in ports
+   clk_in1 => clk_in
+ );
+ 
+process(counter, clk)
+begin
+    if counter < 32 then
+       SCLK<=clk;
+    end if;
+end process;
+    
+process(colcount, rowcount)
+variable x, y: unsigned(3 downto 0);
+begin
+    srgb1 <= "000";
+    srgb2 <= "000";
+    if colcount >= xpos and colcount<xpos+3 then
+        if rowcount >= ypos and rowcount<ypos+3 then
+            x := to_unsigned(colcount-xpos,4);
+            y := to_unsigned(rowcount-ypos,4);
+            
+            srgb1 <= ball(to_integer(y)*3 + to_integer(x));
+         end if;
+         if rowcount+16 >= ypos and rowcount+16<ypos+3 then
+            x := to_unsigned(colcount-xpos,4);
+            y := to_unsigned(rowcount-ypos,4);
+            srgb2 <= ball(to_integer(y)*3 + to_integer(x));
+        end if;
+    end if;
+end process;
+
+--clock divider for movement
+process(clk)
+variable brdx : integer range -1 to 1 := 1;
+variable brdy : integer range -2 to 2 := 2;
+variable rndm : integer range 0 to 1 :=0;
+variable brdymem : integer range -2 to 2;
+begin
+if rising_edge(clk) then
+    movcount <= movcount +1;
+    rndm := rndm + 1;
+    if (movcount = 2000000) then
+        if (ypos <= 1) or (ypos >= 29) then 
+                brdy := 0-(brdy); 
+            end if; 
+        if (xpos <= 1) or (xpos >= 31) then
+            brdx := 0-(brdx);
+        end if;
+        xpos <= xpos+brdx;
+        ypos <= ypos+brdy;
+        movcount <= 0;
+    end if;
+end if;
+end process;
+    
+
+process(clk)
+begin
+if rising_edge(clk) then
+    counter <= counter + 1;
+    if (counter < 33) then
+        colcount <= colcount +1;
+    elsif (counter = 33) then
+        blank <= '1';
+        colcount <= 0;
+    elsif (counter = 34) then
+        a <= std_logic_vector(to_unsigned(rowcount,4));
+        rowcount <= rowcount+1;
+    elsif (counter = 35) then
+        latch <= '1';
+    elsif (counter = 36) then
+        latch <= '0';
+    elsif (counter = 37) then
+        blank <='0';
+        counter <= 0;
+    end if;
+    end if;
+
+if falling_edge(clk) then
+        rgb1<=srgb1;
+        rgb2<=srgb2;
+end if;
+
+    end process;
+
+
+end Behavioral;
