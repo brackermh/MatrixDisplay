@@ -1,4 +1,4 @@
-#**FPGA driven LED Matrix Display**
+# **FPGA driven LED Matrix Display**
 
 Displaying a diamond bouncing off the corners in a pseudo-random fashion on the 32x32 HUB75 LED matrix display board using a Basys 3 Artix-7 FPGA.
 
